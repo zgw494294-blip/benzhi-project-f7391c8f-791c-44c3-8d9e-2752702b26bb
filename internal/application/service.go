@@ -36,6 +36,10 @@ func NewServiceWithDependencies(repository Repository, clock Clock, ids IDGenera
 	return &Service{repository: repository, clock: clock, ids: ids}
 }
 
+// Repository exposes the persistence dependency so that transport-layer
+// probes can verify readiness without duplicating the repository wiring.
+func (s *Service) Repository() Repository { return s.repository }
+
 func validateMeta(meta WriteMeta) error {
 	if meta.ExpectedVersion < 1 {
 		return fieldError("expectedVersion", "expectedVersion 必须为正整数")

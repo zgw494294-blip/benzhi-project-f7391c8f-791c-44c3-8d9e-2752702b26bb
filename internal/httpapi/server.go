@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"embed"
 	"io/fs"
 	"net/http"
@@ -65,5 +66,15 @@ func (s *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{"status": "ok", "time": time.Now().UTC()})
 }
 func (s *Server) ReadyHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	if deadline, ok := ctx.Deadline(); !ok || time.Until(deadline) > 5*time.Second {
+		var cancel func()
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+	}
+	if err := s.service.Repository().IntegrityCheck(ctx); err != nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]any{"status": "not_ready", "reason": err.Error()})
+		return
+	}
 	writeJSON(w, 200, map[string]any{"status": "ready"})
 }
