@@ -1,6 +1,6 @@
 package store
 
-const schemaVersion = 2
+const schemaVersion = 3
 
 var migrations = []string{
 	`CREATE TABLE IF NOT EXISTS schema_migrations (version INTEGER PRIMARY KEY, applied_at TEXT NOT NULL);`,
@@ -48,7 +48,7 @@ var migrations = []string{
 );`,
 	`CREATE TABLE IF NOT EXISTS idempotency_results (
  idempotency_key TEXT PRIMARY KEY, action TEXT NOT NULL, case_id TEXT NOT NULL,
- response_json BLOB NOT NULL, created_at TEXT NOT NULL
+ response_json BLOB NOT NULL, request_digest TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL
 );`,
 	`CREATE TABLE IF NOT EXISTS audit_events (
  sequence INTEGER PRIMARY KEY AUTOINCREMENT, case_id TEXT NOT NULL, action TEXT NOT NULL,

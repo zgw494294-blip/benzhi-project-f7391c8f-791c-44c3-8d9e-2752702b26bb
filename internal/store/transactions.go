@@ -2,7 +2,10 @@ package store
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"time"
@@ -19,7 +22,11 @@ func (s *Store) Create(ctx context.Context, key, action, actor string, item *dom
 		return nil, false, err
 	}
 	defer tx.Rollback()
-	if replay, exists, err := replayResult(ctx, tx, key, action); err != nil {
+	digest, err := createRequestDigest(actor, item)
+	if err != nil {
+		return nil, false, err
+	}
+	if replay, exists, err := replayResult(ctx, tx, key, action, digest); err != nil {
 		return nil, false, err
 	} else if exists {
 		return replay, true, tx.Commit()
@@ -38,7 +45,7 @@ func (s *Store) Create(ctx context.Context, key, action, actor string, item *dom
 	if err := appendAudit(ctx, tx, item, action, actor, nil); err != nil {
 		return nil, false, err
 	}
-	if err := saveIdempotency(ctx, tx, key, action, item.ID, data); err != nil {
+	if err := saveIdempotency(ctx, tx, key, action, item.ID, data, digest); err != nil {
 		return nil, false, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -56,7 +63,7 @@ func (s *Store) Update(ctx context.Context, caseID string, expectedVersion int64
 		return nil, false, err
 	}
 	defer tx.Rollback()
-	if replay, exists, err := replayResult(ctx, tx, key, action); err != nil {
+	if replay, exists, err := replayResult(ctx, tx, key, action, ""); err != nil {
 		return nil, false, err
 	} else if exists {
 		if replay.ID != caseID {
@@ -100,7 +107,7 @@ func (s *Store) Update(ctx context.Context, caseID string, expectedVersion int64
 	if err := appendAudit(ctx, tx, item, action, actor, auditDetails); err != nil {
 		return nil, false, err
 	}
-	if err := saveIdempotency(ctx, tx, key, action, item.ID, data); err != nil {
+	if err := saveIdempotency(ctx, tx, key, action, item.ID, data, ""); err != nil {
 		return nil, false, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -110,10 +117,10 @@ func (s *Store) Update(ctx context.Context, caseID string, expectedVersion int64
 	return resultCase, false, err
 }
 
-func replayResult(ctx context.Context, tx *sql.Tx, key, action string) (*domain.QualificationCase, bool, error) {
-	var storedAction string
+func replayResult(ctx context.Context, tx *sql.Tx, key, action, expectedDigest string) (*domain.QualificationCase, bool, error) {
+	var storedAction, storedDigest string
 	var data []byte
-	err := tx.QueryRowContext(ctx, `SELECT action, response_json FROM idempotency_results WHERE idempotency_key=?`, key).Scan(&storedAction, &data)
+	err := tx.QueryRowContext(ctx, `SELECT action, response_json, request_digest FROM idempotency_results WHERE idempotency_key=?`, key).Scan(&storedAction, &data, &storedDigest)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, false, nil
 	}
@@ -123,12 +130,15 @@ func replayResult(ctx context.Context, tx *sql.Tx, key, action string) (*domain.
 	if storedAction != action {
 		return nil, false, application.ErrIdempotencyConflict
 	}
+	if expectedDigest != "" && storedDigest != expectedDigest {
+		return nil, false, application.ErrIdempotencyConflict
+	}
 	item, err := decodeCase(data)
 	return item, true, err
 }
 
-func saveIdempotency(ctx context.Context, tx *sql.Tx, key, action, caseID string, data []byte) error {
-	_, err := tx.ExecContext(ctx, `INSERT INTO idempotency_results(idempotency_key, action, case_id, response_json, created_at) VALUES(?, ?, ?, ?, ?)`, key, action, caseID, data, time.Now().UTC().Format(time.RFC3339Nano))
+func saveIdempotency(ctx context.Context, tx *sql.Tx, key, action, caseID string, data []byte, digest string) error {
+	_, err := tx.ExecContext(ctx, `INSERT INTO idempotency_results(idempotency_key, action, case_id, response_json, request_digest, created_at) VALUES(?, ?, ?, ?, ?, ?)`, key, action, caseID, data, digest, time.Now().UTC().Format(time.RFC3339Nano))
 	if err != nil {
 		return fmt.Errorf("save idempotency result: %w", err)
 	}
@@ -158,4 +168,30 @@ func loadCaseTx(ctx context.Context, tx *sql.Tx, caseID string) (*domain.Qualifi
 		return nil, err
 	}
 	return decodeCase(data)
+}
+
+type createRequestPayload struct {
+	Actor             string `json:"actor"`
+	AccessionCode     string `json:"accessionCode"`
+	Source            string `json:"source"`
+	HarvestedAt       string `json:"harvestedAt"`
+	DeclaredSeedCount int    `json:"declaredSeedCount"`
+	ProtocolCode      string `json:"protocolCode"`
+}
+
+func createRequestDigest(actor string, item *domain.QualificationCase) (string, error) {
+	payload := createRequestPayload{
+		Actor:             actor,
+		AccessionCode:     item.AccessionCode,
+		Source:            item.Source,
+		HarvestedAt:       item.HarvestedAt,
+		DeclaredSeedCount: item.DeclaredSeedCount,
+		ProtocolCode:      item.ProtocolCode,
+	}
+	data, err := json.Marshal(payload)
+	if err != nil {
+		return "", fmt.Errorf("encode idempotency digest: %w", err)
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
 }
