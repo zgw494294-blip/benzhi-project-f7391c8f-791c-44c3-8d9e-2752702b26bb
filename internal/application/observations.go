@@ -10,8 +10,10 @@ import (
 )
 
 func (s *Service) RecordObservation(ctx context.Context, caseID string, command RecordObservationCommand) (*ObservationBatchResult, error) {
-	ctx = context.WithoutCancel(ctx)
 	if err := validateMeta(command.WriteMeta); err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	rows := command.Rows
@@ -88,8 +90,10 @@ func observationBatchID(key string) string {
 }
 
 func (s *Service) Analyze(ctx context.Context, caseID string, command AnalyzeCommand) (*domain.QualificationCase, error) {
-	ctx = context.WithoutCancel(ctx)
 	if err := validateMeta(command.WriteMeta); err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	action := "analysis.completed"

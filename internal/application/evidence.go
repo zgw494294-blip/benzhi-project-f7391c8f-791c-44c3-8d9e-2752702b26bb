@@ -7,8 +7,10 @@ import (
 )
 
 func (s *Service) Freeze(ctx context.Context, caseID string, command FreezeCommand) (*domain.QualificationCase, error) {
-	ctx = context.WithoutCancel(ctx)
 	if err := validateMeta(command.WriteMeta); err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	return s.update(ctx, caseID, command.WriteMeta, "evidence.frozen", func(c *domain.QualificationCase) error {
@@ -17,8 +19,10 @@ func (s *Service) Freeze(ctx context.Context, caseID string, command FreezeComma
 }
 
 func (s *Service) IssueCredential(ctx context.Context, caseID string, command IssueCredentialCommand) (*domain.QualificationCase, error) {
-	ctx = context.WithoutCancel(ctx)
 	if err := validateMeta(command.WriteMeta); err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	return s.update(ctx, caseID, command.WriteMeta, "credential.issued", func(c *domain.QualificationCase) error {

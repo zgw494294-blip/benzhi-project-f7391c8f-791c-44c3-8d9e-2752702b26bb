@@ -22,7 +22,13 @@ func (s *Store) Create(ctx context.Context, key, action, actor string, item *dom
 	if replay, exists, err := replayResult(ctx, tx, key, action); err != nil {
 		return nil, false, err
 	} else if exists {
+		if err := ctx.Err(); err != nil {
+			return nil, false, err
+		}
 		return replay, true, tx.Commit()
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, false, err
 	}
 	if err := item.Validate(); err != nil {
 		return nil, false, err
@@ -39,6 +45,9 @@ func (s *Store) Create(ctx context.Context, key, action, actor string, item *dom
 		return nil, false, err
 	}
 	if err := saveIdempotency(ctx, tx, key, action, item.ID, data); err != nil {
+		return nil, false, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, false, err
 	}
 	if err := tx.Commit(); err != nil {
@@ -62,6 +71,9 @@ func (s *Store) Update(ctx context.Context, caseID string, expectedVersion int64
 		if replay.ID != caseID {
 			return nil, false, application.ErrIdempotencyConflict
 		}
+		if err := ctx.Err(); err != nil {
+			return nil, false, err
+		}
 		return replay, true, tx.Commit()
 	}
 	item, err := loadCaseTx(ctx, tx, caseID)
@@ -70,6 +82,9 @@ func (s *Store) Update(ctx context.Context, caseID string, expectedVersion int64
 	}
 	if item.Version != expectedVersion {
 		return nil, false, application.ErrVersionConflict
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, false, err
 	}
 	if err := mutation(item); err != nil {
 		return nil, false, err
@@ -101,6 +116,9 @@ func (s *Store) Update(ctx context.Context, caseID string, expectedVersion int64
 		return nil, false, err
 	}
 	if err := saveIdempotency(ctx, tx, key, action, item.ID, data); err != nil {
+		return nil, false, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, false, err
 	}
 	if err := tx.Commit(); err != nil {

@@ -7,8 +7,10 @@ import (
 )
 
 func (s *Service) ResolveDeviation(ctx context.Context, caseID, deviationID string, command ResolveDeviationCommand) (*domain.QualificationCase, error) {
-	ctx = context.WithoutCancel(ctx)
 	if err := validateMeta(command.WriteMeta); err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	if command.StartSupplementalTrial && command.SupplementalTrialID != "" {
@@ -30,8 +32,10 @@ func (s *Service) ResolveDeviation(ctx context.Context, caseID, deviationID stri
 }
 
 func (s *Service) Review(ctx context.Context, caseID string, command ReviewCommand) (*domain.QualificationCase, error) {
-	ctx = context.WithoutCancel(ctx)
 	if err := validateMeta(command.WriteMeta); err != nil {
+		return nil, err
+	}
+	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
 	action := "review." + command.Decision
