@@ -53,6 +53,14 @@ func (s *Store) List(ctx context.Context, status string, limit int) ([]domain.Qu
 }
 
 func (s *Store) Timeline(ctx context.Context, caseID string) ([]domain.AuditEvent, error) {
+	var exists int
+	err := s.db.QueryRowContext(ctx, `SELECT 1 FROM cases WHERE id=?`, caseID).Scan(&exists)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, application.ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
 	rows, err := s.db.QueryContext(ctx, `SELECT sequence, action, actor, details_json, occurred_at FROM audit_events WHERE case_id=? ORDER BY sequence ASC`, caseID)
 	if err != nil {
 		return nil, err

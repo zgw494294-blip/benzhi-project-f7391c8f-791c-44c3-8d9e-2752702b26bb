@@ -13,7 +13,7 @@ import (
 func (s *Service) GetCase(ctx context.Context, caseID string) (*domain.QualificationCase, error) {
 	item, err := s.repository.Get(ctx, caseID)
 	if err != nil {
-		return nil, fmt.Errorf("get case: %v", err)
+		return nil, fmt.Errorf("get case: %w", err)
 	}
 	return item, nil
 }
@@ -23,14 +23,14 @@ func (s *Service) ListCases(ctx context.Context, status string, limit int) ([]do
 	}
 	items, err := s.repository.List(ctx, status, limit)
 	if err != nil {
-		return nil, fmt.Errorf("list cases: %v", err)
+		return nil, fmt.Errorf("list cases: %w", err)
 	}
 	return items, nil
 }
 func (s *Service) Timeline(ctx context.Context, caseID string) ([]domain.AuditEvent, error) {
 	events, err := s.repository.Timeline(ctx, caseID)
 	if err != nil {
-		return nil, fmt.Errorf("load timeline: %v", err)
+		return nil, fmt.Errorf("load timeline: %w", err)
 	}
 	return events, nil
 }
@@ -38,11 +38,11 @@ func (s *Service) Timeline(ctx context.Context, caseID string) ([]domain.AuditEv
 func (s *Service) Workbench(ctx context.Context, caseID string) (*WorkbenchCase, error) {
 	item, err := s.repository.Get(ctx, caseID)
 	if err != nil {
-		return nil, fmt.Errorf("load workbench case: %v", err)
+		return nil, fmt.Errorf("load workbench case: %w", err)
 	}
 	events, err := s.repository.Timeline(ctx, caseID)
 	if err != nil {
-		return nil, fmt.Errorf("load workbench timeline: %v", err)
+		return nil, fmt.Errorf("load workbench timeline: %w", err)
 	}
 	return &WorkbenchCase{Case: item, Timeline: events, NextActions: nextActions(item)}, nil
 }
@@ -69,15 +69,15 @@ func nextActions(c *domain.QualificationCase) []string {
 func (s *Service) VerifyCredential(ctx context.Context, number string) (*CredentialVerification, error) {
 	credential, err := s.repository.GetCredential(ctx, number)
 	if err != nil {
-		return nil, fmt.Errorf("load credential: %v", err)
+		return nil, fmt.Errorf("load credential: %w", err)
 	}
 	bundle, err := s.repository.GetEvidenceBundle(ctx, credential.EvidenceBundleID)
 	if err != nil {
-		return nil, fmt.Errorf("load evidence bundle: %v", err)
+		return nil, fmt.Errorf("load evidence bundle: %w", err)
 	}
 	timeline, err := s.repository.Timeline(ctx, credential.CaseID)
 	if err != nil {
-		return nil, fmt.Errorf("load credential timeline: %v", err)
+		return nil, fmt.Errorf("load credential timeline: %w", err)
 	}
 	recalculated, digestErr := domain.RecalculateEvidenceDigest(bundle, bundle.ProtocolCode)
 	checks := make([]VerificationCheck, 0, 9)
