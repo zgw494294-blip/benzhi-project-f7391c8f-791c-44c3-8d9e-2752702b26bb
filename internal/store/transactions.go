@@ -44,6 +44,7 @@ func (s *Store) Create(ctx context.Context, key, action, actor string, item *dom
 	if err := tx.Commit(); err != nil {
 		return nil, false, err
 	}
+	s.cacheCase(item)
 	result, err := cloneCase(item)
 	return result, false, err
 }
@@ -64,9 +65,13 @@ func (s *Store) Update(ctx context.Context, caseID string, expectedVersion int64
 		}
 		return replay, true, tx.Commit()
 	}
-	item, err := loadCaseTx(ctx, tx, caseID)
-	if err != nil {
-		return nil, false, err
+	item, ok := s.cachedCase(caseID)
+	if !ok {
+		item, err = loadCaseTx(ctx, tx, caseID)
+		if err != nil {
+			return nil, false, err
+		}
+		s.cacheCase(item)
 	}
 	if item.Version != expectedVersion {
 		return nil, false, application.ErrVersionConflict
@@ -106,6 +111,7 @@ func (s *Store) Update(ctx context.Context, caseID string, expectedVersion int64
 	if err := tx.Commit(); err != nil {
 		return nil, false, err
 	}
+	s.cacheCase(item)
 	resultCase, err := cloneCase(item)
 	return resultCase, false, err
 }

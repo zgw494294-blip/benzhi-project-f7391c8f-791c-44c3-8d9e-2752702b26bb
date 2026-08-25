@@ -12,6 +12,9 @@ import (
 )
 
 func (s *Store) Get(ctx context.Context, caseID string) (*domain.QualificationCase, error) {
+	if item, ok := s.cachedCase(caseID); ok {
+		return item, nil
+	}
 	var data []byte
 	err := s.db.QueryRowContext(ctx, `SELECT aggregate_json FROM cases WHERE id=?`, caseID).Scan(&data)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -20,7 +23,12 @@ func (s *Store) Get(ctx context.Context, caseID string) (*domain.QualificationCa
 	if err != nil {
 		return nil, fmt.Errorf("query case: %w", err)
 	}
-	return decodeCase(data)
+	item, err := decodeCase(data)
+	if err != nil {
+		return nil, err
+	}
+	s.cacheCase(item)
+	return item, nil
 }
 
 func (s *Store) List(ctx context.Context, status string, limit int) ([]domain.QualificationCase, error) {

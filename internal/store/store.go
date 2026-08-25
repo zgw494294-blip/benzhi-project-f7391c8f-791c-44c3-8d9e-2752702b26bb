@@ -10,11 +10,15 @@ import (
 	"time"
 
 	_ "modernc.org/sqlite"
+
+	"seed-vigor-gate/internal/domain"
 )
 
 type Store struct {
-	db      *sql.DB
-	writeMu sync.Mutex
+	db        *sql.DB
+	writeMu   sync.Mutex
+	cacheMu   sync.RWMutex
+	caseCache map[string]*domain.QualificationCase
 }
 
 func Open(path string) (*Store, error) {
@@ -35,7 +39,7 @@ func Open(path string) (*Store, error) {
 	db.SetMaxOpenConns(1)
 	db.SetMaxIdleConns(1)
 	db.SetConnMaxLifetime(0)
-	store := &Store{db: db}
+	store := &Store{db: db, caseCache: make(map[string]*domain.QualificationCase)}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := store.migrate(ctx); err != nil {
@@ -96,3 +100,16 @@ func (s *Store) IntegrityCheck(ctx context.Context) error {
 }
 
 func (s *Store) Close() error { return s.db.Close() }
+
+func (s *Store) cachedCase(caseID string) (*domain.QualificationCase, bool) {
+	s.cacheMu.RLock()
+	defer s.cacheMu.RUnlock()
+	item, ok := s.caseCache[caseID]
+	return item, ok
+}
+
+func (s *Store) cacheCase(item *domain.QualificationCase) {
+	s.cacheMu.Lock()
+	defer s.cacheMu.Unlock()
+	s.caseCache[item.ID] = item
+}
