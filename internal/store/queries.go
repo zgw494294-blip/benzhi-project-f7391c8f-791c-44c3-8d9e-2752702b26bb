@@ -6,14 +6,38 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 
 	"seed-vigor-gate/internal/application"
 	"seed-vigor-gate/internal/domain"
 )
 
+var caseLookupStatements = struct {
+	sync.Mutex
+	statement *sql.Stmt
+}{}
+
+func caseLookupStatement(db *sql.DB) (*sql.Stmt, error) {
+	caseLookupStatements.Lock()
+	defer caseLookupStatements.Unlock()
+	if caseLookupStatements.statement != nil {
+		return caseLookupStatements.statement, nil
+	}
+	statement, err := db.Prepare(`SELECT aggregate_json FROM cases WHERE id=?`)
+	if err != nil {
+		return nil, err
+	}
+	caseLookupStatements.statement = statement
+	return statement, nil
+}
+
 func (s *Store) Get(ctx context.Context, caseID string) (*domain.QualificationCase, error) {
+	statement, err := caseLookupStatement(s.db)
+	if err != nil {
+		return nil, fmt.Errorf("prepare case query: %w", err)
+	}
 	var data []byte
-	err := s.db.QueryRowContext(ctx, `SELECT aggregate_json FROM cases WHERE id=?`, caseID).Scan(&data)
+	err = statement.QueryRowContext(ctx, caseID).Scan(&data)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, application.ErrNotFound
 	}
