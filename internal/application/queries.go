@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"sync"
 
 	"seed-vigor-gate/internal/domain"
 )
@@ -59,11 +60,19 @@ func (s *Service) VerifyCredential(ctx context.Context, number string) (*Credent
 	if err != nil {
 		return nil, err
 	}
-	bundle, err := s.repository.GetEvidenceBundle(ctx, credential.EvidenceBundleID)
-	if err != nil {
-		return nil, err
-	}
-	timeline, err := s.repository.Timeline(ctx, credential.CaseID)
+	var bundle *domain.EvidenceBundle
+	var timeline []domain.AuditEvent
+	var reads sync.WaitGroup
+	reads.Add(2)
+	go func() {
+		defer reads.Done()
+		bundle, err = s.repository.GetEvidenceBundle(ctx, credential.EvidenceBundleID)
+	}()
+	go func() {
+		defer reads.Done()
+		timeline, err = s.repository.Timeline(ctx, credential.CaseID)
+	}()
+	reads.Wait()
 	if err != nil {
 		return nil, err
 	}
