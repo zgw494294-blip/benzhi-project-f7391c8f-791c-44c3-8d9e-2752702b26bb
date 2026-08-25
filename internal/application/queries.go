@@ -17,7 +17,21 @@ func (s *Service) ListCases(ctx context.Context, status string, limit int) ([]do
 	if limit < 1 || limit > 200 {
 		limit = 50
 	}
-	return s.repository.List(ctx, status, limit)
+	key := caseListKey{status: status, limit: limit}
+	s.listMu.RLock()
+	items, ok := s.caseLists[key]
+	s.listMu.RUnlock()
+	if ok {
+		return append([]domain.QualificationCase(nil), items...), nil
+	}
+	items, err := s.repository.List(ctx, status, limit)
+	if err != nil {
+		return nil, err
+	}
+	s.listMu.Lock()
+	s.caseLists[key] = append([]domain.QualificationCase(nil), items...)
+	s.listMu.Unlock()
+	return items, nil
 }
 func (s *Service) Timeline(ctx context.Context, caseID string) ([]domain.AuditEvent, error) {
 	return s.repository.Timeline(ctx, caseID)

@@ -4,7 +4,10 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"strings"
+	"sync"
 	"time"
+
+	"seed-vigor-gate/internal/domain"
 )
 
 type Clock interface{ Now() time.Time }
@@ -23,17 +26,24 @@ func (randomIDs) New(prefix string) string {
 	return prefix + hex.EncodeToString(raw[:])
 }
 
+type caseListKey struct {
+	status string
+	limit  int
+}
+
 type Service struct {
 	repository Repository
 	clock      Clock
 	ids        IDGenerator
+	listMu     sync.RWMutex
+	caseLists  map[caseListKey][]domain.QualificationCase
 }
 
 func NewService(repository Repository) *Service {
-	return &Service{repository: repository, clock: realClock{}, ids: randomIDs{}}
+	return &Service{repository: repository, clock: realClock{}, ids: randomIDs{}, caseLists: make(map[caseListKey][]domain.QualificationCase)}
 }
 func NewServiceWithDependencies(repository Repository, clock Clock, ids IDGenerator) *Service {
-	return &Service{repository: repository, clock: clock, ids: ids}
+	return &Service{repository: repository, clock: clock, ids: ids, caseLists: make(map[caseListKey][]domain.QualificationCase)}
 }
 
 func validateMeta(meta WriteMeta) error {
