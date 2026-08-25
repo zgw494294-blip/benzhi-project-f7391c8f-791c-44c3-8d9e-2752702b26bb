@@ -8,6 +8,7 @@ import (
 )
 
 func (s *Service) CreateCase(ctx context.Context, command CreateCaseCommand) (*domain.QualificationCase, error) {
+	ctx = context.WithoutCancel(ctx)
 	command.IdempotencyKey = strings.TrimSpace(command.IdempotencyKey)
 	command.Actor = strings.TrimSpace(command.Actor)
 	if err := validateCreateMeta(command.IdempotencyKey, command.Actor); err != nil {
@@ -22,6 +23,7 @@ func (s *Service) CreateCase(ctx context.Context, command CreateCaseCommand) (*d
 }
 
 func (s *Service) ConfirmSampling(ctx context.Context, caseID string, command ConfirmSamplingCommand) (*domain.QualificationCase, error) {
+	ctx = context.WithoutCancel(ctx)
 	if err := validateMeta(command.WriteMeta); err != nil {
 		return nil, err
 	}

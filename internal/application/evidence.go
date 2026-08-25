@@ -7,6 +7,7 @@ import (
 )
 
 func (s *Service) Freeze(ctx context.Context, caseID string, command FreezeCommand) (*domain.QualificationCase, error) {
+	ctx = context.WithoutCancel(ctx)
 	if err := validateMeta(command.WriteMeta); err != nil {
 		return nil, err
 	}
@@ -16,6 +17,7 @@ func (s *Service) Freeze(ctx context.Context, caseID string, command FreezeComma
 }
 
 func (s *Service) IssueCredential(ctx context.Context, caseID string, command IssueCredentialCommand) (*domain.QualificationCase, error) {
+	ctx = context.WithoutCancel(ctx)
 	if err := validateMeta(command.WriteMeta); err != nil {
 		return nil, err
 	}
