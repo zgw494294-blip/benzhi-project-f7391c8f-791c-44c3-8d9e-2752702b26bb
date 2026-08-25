@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="种质资源入库前活力鉴定工作台">
+  <title>种子活力闸门 · 鉴定工作台</title>
+  <link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div><span class="eyebrow">SEED VIGOR GATE</span><h1>种子活力鉴定工作台</h1></div>
+    <div class="health"><span class="pulse"></span>本地证据链在线</div>
+  </header>
+  <main>
+    <section class="hero">
+      <div><p class="kicker">入库前质量控制</p><h2>让每一份适格结论，都能回到原始观测。</h2><p>从建档、代表性抽样到证据冻结与凭据验真，版本和审计轨迹贯穿整个流程。</p></div>
+      <div class="hero-stat"><strong id="caseCount">0</strong><span>当前批次</span></div>
+    </section>
+    <nav class="steps" aria-label="鉴定流程">
+      <span>01 建档</span><span>02 抽样</span><span>03 观测</span><span>04 偏差</span><span>05 复核</span><span>06 冻结</span><span>07 凭据</span>
+    </nav>
+    <div id="notice" class="notice" role="status" hidden></div>
+    <section class="layout">
+      <aside class="panel queue">
+        <div class="panel-title"><div><p class="kicker">WORK QUEUE</p><h3>鉴定批次</h3></div><button id="refreshCases" class="quiet">刷新</button></div>
+        <div id="caseList" class="case-list"><p class="empty">尚无批次</p></div>
+        <details open>
+          <summary>新建鉴定批次</summary>
+          <form id="createForm" class="form-grid">
+            <label>种质编号<input name="accessionCode" required placeholder="ACC-2026-001"></label>
+            <label>来源<input name="source" required placeholder="华北资源圃 / 2026 春"></label>
+            <label>收获日期<input name="harvestedAt" type="date" required></label>
+            <label>声明数量<input name="declaredSeedCount" type="number" min="200" value="500" required></label>
+            <label>鉴定协议<select name="protocolCode"><option>ISTA-2025</option><option>GB-T3543-2025</option></select></label>
+            <label>接收员<input name="actor" value="接收员-01" required></label>
+            <button type="submit" class="primary">创建并进入流程</button>
+          </form>
+        </details>
+      </aside>
+      <section class="workspace">
+        <div id="noSelection" class="panel welcome"><p class="kicker">SELECT A CASE</p><h3>选择批次以查看证据时间线</h3><p>左侧建档后，可依次完成抽样、观测、自动分析、质量复核和凭据签发。</p></div>
+        <div id="caseWorkspace" hidden>
+          <section class="panel case-head">
+            <div><p id="caseCode" class="kicker"></p><h3 id="caseTitle"></h3><p id="caseMeta"></p></div>
+            <div><span id="caseStatus" class="badge"></span><span id="caseVersion" class="version"></span></div>
+          </section>
+          <div class="module-grid">
+            <section class="panel module" data-module="sampling">
+              <p class="module-no">02</p><h3>代表性抽样</h3><p>确认后锁定每个样品单元的配额、重复组、抽样占比和剩余留样量。</p>
+              <form id="samplingForm" class="form-grid two">
+                <label class="wide">单元配额（每行：名称,粒数,重复组）<textarea name="unitQuotas" rows="4" required>袋位-A,100,1
+袋位-B,100,2
+袋位-C,100,3
+袋位-D,100,4</textarea></label>
+                <label>重复组数<input name="replicateCount" type="number" value="4" min="2" required></label>
+                <label>每组粒数<input name="seedsPerReplicate" type="number" value="100" min="25" required></label>
+                <label>温度下限 ℃<input name="temperatureMinC" type="number" step="0.1" value="20" required></label>
+                <label>温度上限 ℃<input name="temperatureMaxC" type="number" step="0.1" value="25" required></label>
+                <label>确认人<input name="actor" value="接收员-01" required></label>
+                <label class="wide">环境条件<input name="environmentNotes" value="恒温培养箱，纸床法"></label>
+                <button class="primary" type="submit">确认抽样方案</button>
+              </form>
+			  <div id="samplingSummary" class="table-wrap"></div>
+            </section>
+            <section class="panel module" data-module="observation">
+              <p class="module-no">03</p><h3>发芽观测矩阵</h3><p>每行格式为“重复组,观测日,正常,异常,未发芽,污染,温度”，一次原子保存最多二十行。</p>
+              <form id="observationForm" class="matrix-form">
+				<label class="wide">矩阵行<textarea name="matrixRows" rows="4" required>1,7,90,4,6,0,22
+2,7,91,4,5,0,22
+3,7,92,4,4,0,22
+4,7,93,4,3,0,22</textarea></label>
+				<label>补充试验 ID<input name="supplementalTrialId" placeholder="留空表示原试验"></label>
+                <label>试验员<input name="actor" value="试验员-01" required></label>
+				<label class="check"><input name="submitted" type="checkbox" checked> 全部提交为正式修订</label>
+				<button class="primary" type="submit">原子保存矩阵</button>
+              </form>
+              <div id="observationMatrix" class="table-wrap"></div>
+              <button id="analyzeButton" class="accent">运行确定性分析</button>
+              <div id="metrics" class="metrics"></div>
+            </section>
+            <section class="panel module" data-module="deviation">
+			  <p class="module-no">04</p><h3>偏差处置</h3><p>补充试验由系统创建并一对一关联原偏差，原始证据与历次分析继续保留。</p>
+              <div id="deviationList"><p class="empty">尚未形成偏差</p></div>
+            </section>
+            <section class="panel module" data-module="review">
+              <p class="module-no">05</p><h3>质量复核</h3>
+              <form id="reviewForm" class="form-grid two">
+                <label>决定<select name="decision"><option value="approve">批准结论</option><option value="return">退回整改</option></select></label>
+                <label>复核员<input name="actor" value="复核员-01" required></label>
+                <label class="wide">理由<input name="reason" placeholder="退回时必填；批准可填写复核说明"></label>
+                <button class="primary" type="submit">提交复核决定</button>
+              </form>
+              <div class="action-row"><button id="freezeButton" class="accent">冻结证据包</button><button id="issueButton" class="primary">签发适格凭据</button></div>
+            </section>
+            <section class="panel module timeline-panel">
+              <p class="module-no">AUDIT</p><h3>证据时间线</h3><ol id="timeline" class="timeline"></ol>
+            </section>
+          </div>
+        </div>
+      </section>
+    </section>
+    <section class="panel verifier">
+      <div><p class="kicker">CREDENTIAL VERIFY</p><h3>入库适格凭据验真</h3><p>输入凭据编号，核对不可变证据摘要和连续审计轨迹。</p></div>
+      <form id="verifyForm"><input name="credentialNo" placeholder="SVG-20260825-…" required><button class="accent" type="submit">立即验真</button></form>
+      <div id="verifyResult"></div>
+    </section>
+  </main>
+  <footer>Seed Vigor Gate · 所有业务数据保存在本地 SQLite，浏览器仅调用同源 JSON API。</footer>
+  <script src="/assets/app.js" defer></script>
+</body>
+</html>
