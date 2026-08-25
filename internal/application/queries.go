@@ -11,26 +11,38 @@ import (
 )
 
 func (s *Service) GetCase(ctx context.Context, caseID string) (*domain.QualificationCase, error) {
-	return s.repository.Get(ctx, caseID)
+	item, err := s.repository.Get(ctx, caseID)
+	if err != nil {
+		return nil, fmt.Errorf("get case: %v", err)
+	}
+	return item, nil
 }
 func (s *Service) ListCases(ctx context.Context, status string, limit int) ([]domain.QualificationCase, error) {
 	if limit < 1 || limit > 200 {
 		limit = 50
 	}
-	return s.repository.List(ctx, status, limit)
+	items, err := s.repository.List(ctx, status, limit)
+	if err != nil {
+		return nil, fmt.Errorf("list cases: %v", err)
+	}
+	return items, nil
 }
 func (s *Service) Timeline(ctx context.Context, caseID string) ([]domain.AuditEvent, error) {
-	return s.repository.Timeline(ctx, caseID)
+	events, err := s.repository.Timeline(ctx, caseID)
+	if err != nil {
+		return nil, fmt.Errorf("load timeline: %v", err)
+	}
+	return events, nil
 }
 
 func (s *Service) Workbench(ctx context.Context, caseID string) (*WorkbenchCase, error) {
 	item, err := s.repository.Get(ctx, caseID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load workbench case: %v", err)
 	}
 	events, err := s.repository.Timeline(ctx, caseID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load workbench timeline: %v", err)
 	}
 	return &WorkbenchCase{Case: item, Timeline: events, NextActions: nextActions(item)}, nil
 }
@@ -57,15 +69,15 @@ func nextActions(c *domain.QualificationCase) []string {
 func (s *Service) VerifyCredential(ctx context.Context, number string) (*CredentialVerification, error) {
 	credential, err := s.repository.GetCredential(ctx, number)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load credential: %v", err)
 	}
 	bundle, err := s.repository.GetEvidenceBundle(ctx, credential.EvidenceBundleID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load evidence bundle: %v", err)
 	}
 	timeline, err := s.repository.Timeline(ctx, credential.CaseID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load credential timeline: %v", err)
 	}
 	recalculated, digestErr := domain.RecalculateEvidenceDigest(bundle, bundle.ProtocolCode)
 	checks := make([]VerificationCheck, 0, 9)
